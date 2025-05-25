@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+  }
+
+  body {
+    @apply bg-gray-900 text-gray-100;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900;
+  }
+  
+  .btn-primary {
+    @apply btn bg-amber-500 text-gray-900 hover:bg-amber-600 focus:ring-amber-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-gray-700 text-gray-100 hover:bg-gray-600 focus:ring-gray-700;
+  }
+
+  .btn-outline {
+    @apply btn bg-transparent border border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-gray-900 focus:ring-amber-500;
+  }
+
+  .card {
+    @apply bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl;
+  }
+
+  .input {
+    @apply bg-gray-800 border border-gray-700 rounded-md px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent;
+  }
+
+  .badge {
+    @apply px-2 py-1 text-xs rounded-full font-medium;
+  }
+
+  .badge-verified {
+    @apply badge bg-green-900 text-green-300;
+  }
+
+  .badge-pending {
+    @apply badge bg-amber-900 text-amber-300;
+  }
+
+  .badge-rejected {
+    @apply badge bg-red-900 text-red-300;
+  }
+}
