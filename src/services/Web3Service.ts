@@ -1,21 +1,43 @@
 import { ethers } from 'ethers';
+import IPFSService from './IPFSService';
 
-// This is a mock service for the MVP
-// In a real application, this would contain actual contract calls
+// ABI for the Artist Verification Contract
+const ARTIST_VERIFICATION_ABI = [
+  "function submitArtistProfile(string memory ipfsHash) external",
+  "function getVerificationStatus(address artist) external view returns (uint8, uint256)",
+  "function getVerifiedArtists() external view returns (address[])",
+  "function verifyArtist(address artist) external",
+  "function rejectArtist(address artist) external",
+  "function getArtistIPFSHash(address artist) external view returns (string)",
+  "event ArtistProfileSubmitted(address indexed artist, string ipfsHash)",
+  "event ArtistVerified(address indexed artist)",
+  "event ArtistRejected(address indexed artist)"
+];
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export class Web3Service {
   private provider: ethers.BrowserProvider | null = null;
   private signer: ethers.JsonRpcSigner | null = null;
+  private contract: ethers.Contract | null = null;
   
-  // Mock contract addresses
-  private readonly ARTIST_CONTRACT_ADDRESS = '0x123456789abcdef123456789abcdef123456789a';
+  // Get contract address from environment variable
+  private readonly ARTIST_CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
   
-  // Initialize provider and signer
+  // Initialize provider, signer, and contract
   async initialize() {
     if (window.ethereum) {
       try {
         this.provider = new ethers.BrowserProvider(window.ethereum);
         this.signer = await this.provider.getSigner();
+        
+        // Initialize the contract
+        this.contract = new ethers.Contract(
+          this.ARTIST_CONTRACT_ADDRESS,
+          ARTIST_VERIFICATION_ABI,
+          this.signer
+        );
+        
         return true;
       } catch (error) {
         console.error('Error initializing Web3Service:', error);
@@ -27,72 +49,135 @@ export class Web3Service {
     }
   }
   
-  // Submit artist profile (mock implementation)
+  // Submit artist profile
   async submitArtistProfile(profileData: any) {
     if (!this.signer) {
       throw new Error('Signer not initialized');
     }
     
-    // In a real application, this would submit data to the blockchain
-    console.log('Submitting artist profile:', profileData);
-    
-    // Mock success response
-    return {
-      success: true,
-      txHash: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-    };
+    try {
+      const address = await this.signer.getAddress();
+      
+      // Submit to backend API
+      const response = await fetch(`${API_URL}/artist/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...profileData,
+          walletAddress: address,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to submit artist profile');
+      }
+      
+      return result.data;
+    } catch (error: any) {
+      console.error('Error submitting artist profile:', error);
+      throw new Error(error.message || 'Failed to submit artist profile');
+    }
   }
   
-  // Get verification status (mock implementation)
+  // Get verification status
   async getVerificationStatus(address: string) {
-    if (!this.provider) {
-      throw new Error('Provider not initialized');
+    try {
+      const response = await fetch(`${API_URL}/artist/status/${address}`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to get verification status');
+      }
+      
+      return result.data;
+    } catch (error: any) {
+      console.error('Error getting verification status:', error);
+      throw new Error(error.message || 'Failed to get verification status');
     }
-    
-    // In a real application, this would call a contract method
-    console.log('Getting verification status for:', address);
-    
-    // Mock status based on address pattern (just for demo)
-    const lastChar = address.slice(-1);
-    const status = parseInt(lastChar, 16) % 3;
-    
-    return {
-      status: status === 0 ? 'pending' : status === 1 ? 'verified' : 'rejected',
-      timestamp: Date.now(),
-    };
   }
   
-  // Get verified artists (mock implementation)
+  // Get verified artists
   async getVerifiedArtists() {
-    if (!this.provider) {
-      throw new Error('Provider not initialized');
+    if (!this.contract || !this.provider) {
+      throw new Error('Contract or provider not initialized');
     }
     
-    // In a real application, this would call a contract method
-    console.log('Getting verified artists');
-    
-    // Return mock data
-    return [
-      '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
-      '0x70997970c51812dc3a010c7d01b50e0d17dc79c8',
-      '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc',
-    ];
+    try {
+      const verifiedArtists = await this.contract.getVerifiedArtists();
+      const artistsData = await Promise.all(
+        verifiedArtists.map(async (address: string) => {
+          const status = await this.getVerificationStatus(address);
+          return { address, ...status.artistData };
+        })
+      );
+      return artistsData;
+    } catch (error: any) {
+      console.error('Error getting verified artists:', error);
+      throw new Error(error.message || 'Failed to get verified artists');
+    }
   }
   
-  // Verify artist (admin function, mock implementation)
+  // Verify artist (admin function)
   async verifyArtist(artistAddress: string) {
-    if (!this.signer) {
-      throw new Error('Signer not initialized');
+    try {
+      const response = await fetch(`${API_URL}/artist/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          artistAddress,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to verify artist');
+      }
+      
+      return result.data;
+    } catch (error: any) {
+      console.error('Error verifying artist:', error);
+      throw new Error(error.message || 'Failed to verify artist');
     }
-    
-    // In a real application, this would call a contract method
-    console.log('Verifying artist:', artistAddress);
-    
-    // Mock success response
-    return {
-      success: true,
-      txHash: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-    };
+  }
+
+  // Listen for contract events
+  async subscribeToEvents(callbacks: {
+    onSubmission?: (artist: string, ipfsHash: string) => void;
+    onVerification?: (artist: string) => void;
+    onRejection?: (artist: string) => void;
+  }) {
+    if (!this.contract) {
+      throw new Error('Contract not initialized');
+    }
+
+    // Listen for profile submissions
+    this.contract.on('ArtistProfileSubmitted', (artist, ipfsHash) => {
+      callbacks.onSubmission?.(artist, ipfsHash);
+    });
+
+    // Listen for verifications
+    this.contract.on('ArtistVerified', (artist) => {
+      callbacks.onVerification?.(artist);
+    });
+
+    // Listen for rejections
+    this.contract.on('ArtistRejected', (artist) => {
+      callbacks.onRejection?.(artist);
+    });
+  }
+
+  // Cleanup event listeners
+  async unsubscribeFromEvents() {
+    if (this.contract) {
+      this.contract.removeAllListeners();
+    }
   }
 }
 

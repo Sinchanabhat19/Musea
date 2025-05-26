@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import Web3Service from '../services/Web3Service';
 
 type ArtistFormData = {
   name: string;
@@ -13,6 +14,7 @@ type ArtistFormData = {
     instagram: string;
   };
   artStyle: string;
+  portfolio: string;
 };
 
 const ArtistSubmissionForm = () => {
@@ -28,20 +30,25 @@ const ArtistSubmissionForm = () => {
       instagram: '',
     },
     artStyle: '',
+    portfolio: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
-      setFormData({
-        ...formData,
-        [parent]: {
-          ...formData[parent as keyof ArtistFormData],
-          [child]: value,
-        },
-      });
+      if (parent === 'socialMedia') {
+        setFormData({
+          ...formData,
+          socialMedia: {
+            ...formData.socialMedia,
+            [child]: value,
+          },
+        });
+      }
     } else {
       setFormData({
         ...formData,
@@ -52,19 +59,25 @@ const ArtistSubmissionForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.bio || !formData.email) {
+
+    if (!formData.name || !formData.bio || !formData.email || !formData.portfolio) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
-      
-      // In a real app, we would upload to IPFS/Blockchain
-      await updateUserProfile(formData);
-      
-      // Reset form after successful submission
+
+      const result = await Web3Service.submitArtistProfile(formData);
+
+      await updateUserProfile({
+        ...formData,
+        ipfsCid: result.ipfsCid,
+        txHash: result.txHash,
+      });
+
+      toast.success('Profile submitted successfully!');
+
       setFormData({
         name: '',
         bio: '',
@@ -75,9 +88,11 @@ const ArtistSubmissionForm = () => {
           instagram: '',
         },
         artStyle: '',
+        portfolio: '',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
+      toast.error(error.message || 'Failed to submit profile');
     } finally {
       setIsSubmitting(false);
     }
@@ -91,7 +106,7 @@ const ArtistSubmissionForm = () => {
       className="bg-gray-800 rounded-lg p-6 shadow-lg"
     >
       <h2 className="text-2xl font-serif font-bold mb-6">Artist Verification Application</h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">
@@ -108,7 +123,7 @@ const ArtistSubmissionForm = () => {
             placeholder="Your artistic name"
           />
         </div>
-        
+
         <div>
           <label htmlFor="bio" className="block text-sm font-medium text-gray-300 mb-1">
             Artist Bio *
@@ -124,7 +139,7 @@ const ArtistSubmissionForm = () => {
             placeholder="Tell us about your artistic journey and style"
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
@@ -141,7 +156,25 @@ const ArtistSubmissionForm = () => {
               placeholder="your@email.com"
             />
           </div>
-          
+
+          <div>
+            <label htmlFor="portfolio" className="block text-sm font-medium text-gray-300 mb-1">
+              Portfolio URL *
+            </label>
+            <input
+              type="url"
+              id="portfolio"
+              name="portfolio"
+              value={formData.portfolio}
+              onChange={handleChange}
+              required
+              className="input w-full"
+              placeholder="https://yourportfolio.com"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="website" className="block text-sm font-medium text-gray-300 mb-1">
               Website
@@ -156,8 +189,30 @@ const ArtistSubmissionForm = () => {
               placeholder="https://yourwebsite.com"
             />
           </div>
+
+          <div>
+            <label htmlFor="artStyle" className="block text-sm font-medium text-gray-300 mb-1">
+              Primary Art Style
+            </label>
+            <select
+              id="artStyle"
+              name="artStyle"
+              value={formData.artStyle}
+              onChange={handleChange}
+              className="input w-full"
+            >
+              <option value="">Select your primary style</option>
+              <option value="Digital Art">Digital Art</option>
+              <option value="Paintings">Paintings</option>
+              <option value="Photography">Photography</option>
+              <option value="Sculpture">Sculpture</option>
+              <option value="Mixed Media">Mixed Media</option>
+              <option value="Generative Art">Generative Art</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="socialMedia.twitter" className="block text-sm font-medium text-gray-300 mb-1">
@@ -173,7 +228,7 @@ const ArtistSubmissionForm = () => {
               placeholder="@username"
             />
           </div>
-          
+
           <div>
             <label htmlFor="socialMedia.instagram" className="block text-sm font-medium text-gray-300 mb-1">
               Instagram
@@ -189,29 +244,7 @@ const ArtistSubmissionForm = () => {
             />
           </div>
         </div>
-        
-        <div>
-          <label htmlFor="artStyle" className="block text-sm font-medium text-gray-300 mb-1">
-            Primary Art Style
-          </label>
-          <select
-            id="artStyle"
-            name="artStyle"
-            value={formData.artStyle}
-            onChange={handleChange}
-            className="input w-full"
-          >
-            <option value="">Select your primary style</option>
-            <option value="Digital Art">Digital Art</option>
-            <option value="Paintings">Paintings</option>
-            <option value="Photography">Photography</option>
-            <option value="Sculpture">Sculpture</option>
-            <option value="Mixed Media">Mixed Media</option>
-            <option value="Generative Art">Generative Art</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        
+
         <div className="pt-2">
           <button
             type="submit"
@@ -220,7 +253,7 @@ const ArtistSubmissionForm = () => {
           >
             {isSubmitting ? 'Submitting...' : 'Submit for Verification'}
           </button>
-          
+
           <p className="mt-3 text-sm text-gray-400">
             By submitting, you agree to our verification process. Our admin team will review your application and update your status accordingly.
           </p>
