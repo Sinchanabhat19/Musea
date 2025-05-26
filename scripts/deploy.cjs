@@ -32,23 +32,23 @@ async function main() {
 
   // Save deployment account
   const deploymentData = {
-    address: deployer.address,
+    address_s: deployer.address,
     privateKey: deployer.privateKey
   };
 
   fs.writeFileSync(
     path.join("backend", ".env"),
-    `WEB3_STORAGE_TOKEN=your_web3_storage_token
-PRIVATE_KEY=${deployer.privateKey}
+    `WEB3_STORAGE_TOKEN=9e002a18.ae363fd6ab514b78875d91eb3de8c33b
+PRIVATE_KEY=${deploymentData.privateKey}
 RPC_URL=http://127.0.0.1:8545
-CONTRACT_ADDRESS=${address}
+CONTRACT_ADDRESS=${deploymentData.address_s}
 PORT=3000`
   );
 
   fs.writeFileSync(
     ".env",
     `VITE_API_URL=http://localhost:3000/api
-VITE_CONTRACT_ADDRESS=${address}`
+VITE_CONTRACT_ADDRESS=${deploymentData.address_s}`
   );
 }
 

@@ -6,7 +6,7 @@ class IPFSService {
 
   constructor() {
     // Replace with your Web3.Storage API token
-    const token = 'YOUR_WEB3_STORAGE_TOKEN';
+    const token = '9e002a18.ae363fd6ab514b78875d91eb3de8c33b';
     this.client = new Web3Storage({ token });
   }
 
